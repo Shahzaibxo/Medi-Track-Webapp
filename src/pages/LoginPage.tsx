@@ -91,7 +91,7 @@ export const LoginPage: React.FC = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-500 text-white rounded-full mb-4">
             <Pill className="h-8 w-8" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">MedPortal</h1>
+          <h1 className="text-3xl font-bold text-gray-900">MediTrack</h1>
           <p className="text-gray-600 mt-2">
             Company Medicine Management System
           </p>

@@ -10,7 +10,7 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row items-center md:items-start justify-between space-y-6 md:space-y-0">
           {/* Logo & Description */}
           <div className="text-center md:text-left">
-            <h2 className="text-2xl font-bold text-white">PharmaNexus</h2>
+            <h2 className="text-2xl font-bold text-white">MediTrack</h2>
             <p className="mt-2 max-w-xl text-base text-white">
               Blockchain-Based Anti-Counterfeit Medicine Tracking and
               Verification System
@@ -55,7 +55,7 @@ const Footer = () => {
 
         {/* Bottom Section */}
         <div className="mt-4 text-center text-base text-white">
-          &copy; {new Date().getFullYear()} PharmaNexus. All rights reserved.
+          &copy; {new Date().getFullYear()} MediTrack. All rights reserved.
         </div>
       </div>
     </footer>
