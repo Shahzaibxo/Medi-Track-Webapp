@@ -1,55 +1,70 @@
-import React, { useState } from 'react';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Card';
-import { Medicine } from '../../types';
-import { X, Pill } from 'lucide-react';
+import { Input } from '../ui/Input';
+import { Button } from '../ui/Button';
+import { useToast } from '../ui/Toast';
+import { CreateMedicineRequest } from '../../types';
+import { ApiService } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { Pill, X, Upload, Eye, EyeOff } from 'lucide-react';
 
 interface CreateMedicineFormProps {
   onClose: () => void;
-  onSubmit: (medicine: Omit<Medicine, 'id' | 'createdAt' | 'stripCount'>) => void;
+  onSubmit: (medicineData: CreateMedicineRequest, imageFile: File) => void;
 }
 
 export const CreateMedicineForm: React.FC<CreateMedicineFormProps> = ({ onClose, onSubmit }) => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
-    manufacturer: '',
-    category: '',
-    dosageForm: '',
-    strength: ''
+    formula: '',
+    company: user?.companyName || ''
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const { addToast } = useToast();
 
-  const categories = [
-    'Analgesics',
-    'Antibiotics',
-    'Antidiabetic',
-    'Cardiovascular',
-    'Respiratory',
-    'Gastrointestinal',
-    'Neurological',
-    'Dermatological',
-    'Other'
-  ];
+  // Update company when user changes
+  useEffect(() => {
+    if (user?.companyName) {
+      setFormData(prev => ({ ...prev, company: user.companyName }));
+    }
+  }, [user?.companyName]);
 
-  const dosageForms = [
-    'Tablet',
-    'Capsule',
-    'Syrup',
-    'Injection',
-    'Cream',
-    'Ointment',
-    'Drops',
-    'Inhaler'
-  ];
+  // Cleanup object URL when component unmounts
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+    };
+  }, [imagePreviewUrl]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Revoke previous URL if it exists
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+      
+      setImageFile(file);
+      const newPreviewUrl = URL.createObjectURL(file);
+      setImagePreviewUrl(newPreviewUrl);
+      
+      if (errors.image) {
+        setErrors(prev => ({ ...prev, image: '' }));
+      }
     }
   };
 
@@ -60,24 +75,14 @@ export const CreateMedicineForm: React.FC<CreateMedicineFormProps> = ({ onClose,
       newErrors.name = 'Medicine name is required';
     }
 
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
+    if (!formData.formula.trim()) {
+      newErrors.formula = 'Formula is required';
     }
 
-    if (!formData.manufacturer.trim()) {
-      newErrors.manufacturer = 'Manufacturer is required';
-    }
+    // Company is automatically set from user context, no validation needed
 
-    if (!formData.category) {
-      newErrors.category = 'Category is required';
-    }
-
-    if (!formData.dosageForm) {
-      newErrors.dosageForm = 'Dosage form is required';
-    }
-
-    if (!formData.strength.trim()) {
-      newErrors.strength = 'Strength is required';
+    if (!imageFile) {
+      newErrors.image = 'Medicine image is required';
     }
 
     setErrors(newErrors);
@@ -91,18 +96,34 @@ export const CreateMedicineForm: React.FC<CreateMedicineFormProps> = ({ onClose,
 
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      onSubmit(formData);
+      // Call the API to create medicine
+      const response = await ApiService.createMedicine(formData, imageFile!);
+      
+      // Show success toast
+      addToast({
+        type: 'success',
+        title: 'Medicine Created!',
+        message: 'Medicine has been successfully created and added to your inventory.'
+      });
+      
+      // Call the onSubmit callback with the created medicine data
+      onSubmit(formData, imageFile!);
       onClose();
-    } catch (error) {
-      setErrors({ general: 'Failed to create medicine. Please try again.' });
+    } catch (error: any) {
+      // Show error toast
+      addToast({
+        type: 'error',
+        title: 'Creation Failed',
+        message: error.message || 'Failed to create medicine. Please try again.'
+      });
+      
+      setErrors({ general: error.message || 'Failed to create medicine. Please try again.' });
     }
     setLoading(false);
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center p-4 z-50">
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
@@ -140,91 +161,87 @@ export const CreateMedicineForm: React.FC<CreateMedicineFormProps> = ({ onClose,
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description *
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange(e as any)}
-                  className={`
-                    w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                    ${errors.description ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}
-                  `}
-                  rows={3}
-                  placeholder="Brief description of the medicine and its uses"
+                <Input
+                  label="Formula *"
+                  name="formula"
+                  value={formData.formula}
+                  onChange={handleInputChange}
+                  error={errors.formula}
+                  placeholder="e.g., C9H8O4, Active ingredients"
                 />
-                {errors.description && (
-                  <p className="text-sm text-red-600 mt-1">{errors.description}</p>
-                )}
               </div>
 
-              <Input
-                label="Manufacturer *"
-                name="manufacturer"
-                value={formData.manufacturer}
-                onChange={handleInputChange}
-                error={errors.manufacturer}
-                placeholder="e.g., PharmaCorp Ltd."
-              />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category *
-                </label>
-                <select
-                  name="category"
-                  value={formData.category}
+              <div className="md:col-span-2">
+                <Input
+                  label="Company *"
+                  name="company"
+                  value={formData.company}
                   onChange={handleInputChange}
-                  className={`
-                    w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                    ${errors.category ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}
-                  `}
-                >
-                  <option value="">Select category</option>
-                  {categories.map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-                {errors.category && (
-                  <p className="text-sm text-red-600 mt-1">{errors.category}</p>
-                )}
+                  error={errors.company}
+                  placeholder="e.g., PharmaCorp Ltd."
+                  readOnly
+                />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Dosage Form *
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Medicine Image *
                 </label>
-                <select
-                  name="dosageForm"
-                  value={formData.dosageForm}
-                  onChange={handleInputChange}
-                  className={`
-                    w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                    ${errors.dosageForm ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}
-                  `}
-                >
-                  <option value="">Select dosage form</option>
-                  {dosageForms.map(form => (
-                    <option key={form} value={form}>{form}</option>
-                  ))}
-                </select>
-                {errors.dosageForm && (
-                  <p className="text-sm text-red-600 mt-1">{errors.dosageForm}</p>
+                                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
+                    <div className="space-y-1 text-center">
+                      {imageFile ? (
+                        <div className="space-y-2">
+                          <img 
+                            src={imagePreviewUrl || ''}
+                            alt="Preview"
+                            className="mx-auto h-32 w-auto object-cover rounded-lg border border-gray-200"
+                          />
+                          <p className="text-sm text-emerald-600 font-medium">
+                            {imageFile.name}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setImageFile(null);
+                              if (imagePreviewUrl) {
+                                URL.revokeObjectURL(imagePreviewUrl);
+                                setImagePreviewUrl(null);
+                              }
+                            }}
+                            className="text-sm text-red-600 hover:text-red-500"
+                          >
+                            Remove image
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="flex text-sm text-gray-600">
+                            <label
+                              htmlFor="image-upload"
+                              className="relative cursor-pointer bg-white rounded-md font-medium text-emerald-600 hover:text-emerald-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-emerald-500"
+                            >
+                              <span>Upload a file</span>
+                              <input
+                                id="image-upload"
+                                name="image"
+                                type="file"
+                                accept="image/*"
+                                className="sr-only"
+                                onChange={handleImageChange}
+                              />
+                            </label>
+                            <p className="pl-1">or drag and drop</p>
+                          </div>
+                          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                {errors.image && (
+                  <p className="text-sm text-red-600 mt-1">{errors.image}</p>
                 )}
               </div>
-
-              <Input
-                label="Strength *"
-                name="strength"
-                value={formData.strength}
-                onChange={handleInputChange}
-                error={errors.strength}
-                placeholder="e.g., 100mg, 5ml, 250mg"
-              />
             </div>
 
             <div className="flex gap-3 pt-4 border-t">

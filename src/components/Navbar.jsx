@@ -189,7 +189,7 @@ const Navbar = () => {
           {isAuthenticated ? (
             <>
               <Link
-                to="/dashboard"
+                to="/medicines"
                 className="block px-4 py-2.5 mt-4 text-emerald-600 hover:bg-emerald-50 rounded-lg"
                 onClick={() => setIsOpen(false)}
               >

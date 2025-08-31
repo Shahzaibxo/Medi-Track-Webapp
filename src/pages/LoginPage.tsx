@@ -1,21 +1,24 @@
 import React, { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../components/ui/Toast";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Card } from "../components/ui/Card";
-import { Pill, Mail, Lock, User } from "lucide-react";
+import { Pill, Mail, Lock, Building, MapPin } from "lucide-react";
 
 export const LoginPage: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
-    name: "",
+    companyName: "",
     email: "",
     password: "",
+    location: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const { login, signup, isAuthenticated } = useAuth();
+  const { addToast, ToastContainer } = useToast();
 
   if (isAuthenticated) {
     return <Navigate to="/medicines" replace />;
@@ -32,8 +35,12 @@ export const LoginPage: React.FC = () => {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!isLogin && !formData.name.trim()) {
-      newErrors.name = "Name is required";
+    if (!isLogin && !formData.companyName.trim()) {
+      newErrors.companyName = "Company name is required";
+    }
+
+    if (!isLogin && !formData.location.trim()) {
+      newErrors.location = "Location is required";
     }
 
     if (!formData.email.trim()) {
@@ -59,33 +66,78 @@ export const LoginPage: React.FC = () => {
 
     setLoading(true);
     try {
-      let success = false;
-
       if (isLogin) {
-        success = await login(formData.email, formData.password);
+        const result = await login(formData.email, formData.password);
+        if (result.success) {
+          addToast({
+            type: 'success',
+            title: 'Login Successful!',
+            message: result.message
+          });
+          
+          // Clear form data on successful login
+          setFormData({
+            companyName: "",
+            email: "",
+            password: "",
+            location: "",
+          });
+          
+          // Redirect will happen automatically due to isAuthenticated change
+        } else {
+          addToast({
+            type: 'error',
+            title: 'Login Failed',
+            message: result.message
+          });
+        }
       } else {
-        success = await signup(
-          formData.name,
+        const result = await signup(
+          formData.companyName,
           formData.email,
-          formData.password
+          formData.password,
+          formData.location
         );
-      }
-
-      if (!success) {
-        setErrors({
-          general: isLogin
-            ? "Invalid email or password"
-            : "Failed to create account",
-        });
+        
+        if (result.success) {
+          addToast({
+            type: 'success',
+            title: 'Account Created!',
+            message: result.message
+          });
+          
+          // Clear form data
+          setFormData({
+            companyName: "",
+            email: "",
+            password: "",
+            location: "",
+          });
+          
+          // Switch to login tab
+          setIsLogin(true);
+        } else {
+          addToast({
+            type: 'error',
+            title: 'Signup Failed',
+            message: result.message
+          });
+        }
       }
     } catch (error) {
-      setErrors({ general: "An unexpected error occurred" });
+      addToast({
+        type: 'error',
+        title: 'Error',
+        message: 'An unexpected error occurred'
+      });
     }
     setLoading(false);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-teal-50 flex items-center justify-center p-4">
+      <ToastContainer />
+      
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-500 text-white rounded-full mb-4">
@@ -93,7 +145,7 @@ export const LoginPage: React.FC = () => {
           </div>
           <h1 className="text-3xl font-bold text-gray-900">MediTrack</h1>
           <p className="text-gray-600 mt-2">
-            Company Medicine Management System
+            Manufacturer Medicine Management System
           </p>
         </div>
 
@@ -126,24 +178,34 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {errors.general && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                {errors.general}
+            {!isLogin && (
+              <div className="relative">
+                <Building className="absolute left-3 top-8 h-5 w-5 text-gray-400" />
+                <Input
+                  label="Company Name"
+                  name="companyName"
+                  type="text"
+                  value={formData.companyName}
+                  onChange={handleInputChange}
+                  error={errors.companyName}
+                  className="pl-10"
+                  placeholder="Enter your company name"
+                />
               </div>
             )}
 
             {!isLogin && (
               <div className="relative">
-                <User className="absolute left-3 top-8 h-5 w-5 text-gray-400" />
+                <MapPin className="absolute left-3 top-8 h-5 w-5 text-gray-400" />
                 <Input
-                  label="Full Name"
-                  name="name"
+                  label="Location"
+                  name="location"
                   type="text"
-                  value={formData.name}
+                  value={formData.location}
                   onChange={handleInputChange}
-                  error={errors.name}
+                  error={errors.location}
                   className="pl-10"
-                  placeholder="Enter your full name"
+                  placeholder="Enter your company location"
                 />
               </div>
             )}
@@ -198,7 +260,7 @@ export const LoginPage: React.FC = () => {
         </Card>
 
         <div className="mt-8 text-center text-xs text-gray-500">
-          <p>For demo purposes, use any email and password to continue</p>
+          <p>Connect to your manufacturer account to manage medicines</p>
         </div>
       </div>
     </div>

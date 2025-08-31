@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
-import { User } from "../types";
+import { UserDTO, TokenResponse } from "../types";
+import { ApiService, setAuthToken, removeAuthToken, isAuthenticated } from "../services/api";
 
 interface AuthContextType {
-  user: User | null;
+  user: UserDTO | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  signup: (name: string, email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  signup: (companyName: string, email: string, password: string, location: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
+  checkAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,52 +26,97 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserDTO | null>(null);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock authentication - in real app, this would make API call
-    if (email && password) {
-      const mockUser: User = {
-        id: "1",
-        email,
-        name: email.split("@")[0],
+  const login = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response: TokenResponse = await ApiService.manufacturerSignin({ email, password });
+      
+      setAuthToken(response.accessToken);
+      
+        const userData: UserDTO = {
+          id: Date.now().toString(),
+          email: response.email,
+          companyName: response.companyName,
+          location: response.location
+        };
+      
+      setUser(userData);
+      
+      localStorage.setItem("user", JSON.stringify(userData));
+      
+      return { 
+        success: true, 
+        message: `Welcome back, ${response.companyName}!` 
       };
-      setUser(mockUser);
-      localStorage.setItem("user", JSON.stringify(mockUser));
-      return true;
+    } catch (error: any) {
+      console.error("Login error:", error);
+      return { 
+        success: false, 
+        message: error.message || 'Invalid email or password' 
+      };
     }
-    return false;
   };
 
   const signup = async (
-    name: string,
+    companyName: string,
     email: string,
-    password: string
-  ): Promise<boolean> => {
-    // Mock signup - in real app, this would make API call
-    if (name && email && password) {
-      const mockUser: User = {
-        id: Date.now().toString(),
-        email,
-        name,
+    password: string,
+    location: string
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await ApiService.manufacturerSignup({ 
+        companyName, 
+        email, 
+        password, 
+        location 
+      });
+      
+      // Return success with message for toast notification
+      return { 
+        success: true, 
+        message: response.message || 'Account created successfully! Please sign in.' 
       };
-      setUser(mockUser);
-      localStorage.setItem("user", JSON.stringify(mockUser));
-      return true;
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      return { 
+        success: false, 
+        message: error.message || 'Failed to create account' 
+      };
     }
-    return false;
   };
 
   const logout = () => {
     setUser(null);
+    removeAuthToken();
     localStorage.removeItem("user");
+  };
+
+  const checkAuth = async () => {
+    try {
+      if (isAuthenticated()) {
+        const userData = await ApiService.getCurrentUser();
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+      }
+    } catch (error) {
+      console.error("Auth check error:", error);
+      logout();
+    }
   };
 
   // Check for existing user on mount
   React.useEffect(() => {
     const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    if (savedUser && isAuthenticated()) {
+      try {
+        setUser(JSON.parse(savedUser));
+        // Verify token is still valid
+        checkAuth();
+      } catch (error) {
+        console.error("Error parsing saved user:", error);
+        logout();
+      }
     }
   }, []);
 
@@ -79,6 +126,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     signup,
     logout,
+    checkAuth,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

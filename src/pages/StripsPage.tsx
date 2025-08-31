@@ -103,19 +103,26 @@ const StripsPage = () => {
             Back to Medicines
           </Button>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                {medicine.name}
-              </h1>
-              <p className="mt-2 text-gray-600">
-                {medicine.dosageForm} - {medicine.strength} |{" "}
-                {medicine.manufacturer}
-              </p>
-              <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
-                <span>Category: {medicine.category}</span>
-                <span>•</span>
-                <span>Total Strips: {strips.length}</span>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-4">
+                {medicine.image && (
+                  <img 
+                    src={`data:image/jpeg;base64,${medicine.image}`}
+                    alt={medicine.name}
+                    className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                  />
+                )}
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">
+                    {medicine.name}
+                  </h1>
+                  <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
+                    <span>Company: {typeof medicine.company === 'object' ? (medicine.company as { companyName: string }).companyName : medicine.company}</span>
+                    <span>•</span>
+                    <span>Total Strips: {strips.length}</span>
+                  </div>
+                </div>
               </div>
             </div>
             <Button

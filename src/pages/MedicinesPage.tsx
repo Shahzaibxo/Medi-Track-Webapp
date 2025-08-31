@@ -6,27 +6,38 @@ import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { CreateMedicineForm } from "../components/forms/CreateMedicineForm";
 import { useMedicines } from "../hooks/useMedicines";
+import { useToast } from "../components/ui/Toast";
+import { CreateMedicineRequest } from "../types";
 import {
   Plus,
   Search,
   MoreVertical,
-  Package,
   Building,
   Calendar,
+  AlertCircle,
+  RefreshCw,
+  Package,
 } from "lucide-react";
 
 const MedicinesPage: React.FC = () => {
-  const { medicines, addMedicine } = useMedicines();
+  const { 
+    medicines, 
+    addMedicine, 
+    loading, 
+    error, 
+    clearError,
+    fetchMedicines 
+  } = useMedicines();
   const [searchTerm, setSearchTerm] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedMedicine, setSelectedMedicine] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { addToast, ToastContainer } = useToast();
 
   const filteredMedicines = medicines.filter(
     (medicine) =>
       medicine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      medicine.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      medicine.category.toLowerCase().includes(searchTerm.toLowerCase())
+      medicine.company.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleMedicineClick = (medicineId: string) => {
@@ -51,23 +62,39 @@ const MedicinesPage: React.FC = () => {
     });
   };
 
-  const getStockStatus = (stripCount: number) => {
-    if (stripCount > 50)
-      return { variant: "success" as const, text: "Good Stock" };
-    if (stripCount > 20)
-      return { variant: "warning" as const, text: "Low Stock" };
-    return { variant: "error" as const, text: "Critical" };
+  const handleCreateMedicine = (medicineData: CreateMedicineRequest, imageFile: File) => {
+    addMedicine(medicineData, imageFile);
+    setShowCreateForm(false);
+    
+    // Show success toast
+    addToast({
+      type: 'success',
+      title: 'Medicine Added',
+      message: `${medicineData.name} has been added to your inventory.`
+    });
   };
 
-  const handleCreateMedicine = (
-    medicineData: Parameters<typeof addMedicine>[0]
-  ) => {
-    addMedicine(medicineData);
-    setShowCreateForm(false);
+  const handleRefresh = async () => {
+    try {
+      await fetchMedicines();
+      addToast({
+        type: 'success',
+        title: 'Refreshed',
+        message: 'Medicine list has been updated.'
+      });
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Refresh Failed',
+        message: 'Failed to refresh medicine list.'
+      });
+    }
   };
 
   return (
-    <div className="min-h-screen ">
+    <div className="min-h-screen">
+      <ToastContainer />
+      
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -77,15 +104,47 @@ const MedicinesPage: React.FC = () => {
                 Manage your medicine inventory
               </p>
             </div>
-            <Button
-              onClick={() => setShowCreateForm(true)}
-              className="flex items-center gap-2 cursor-pointer"
-            >
-              <Plus className="h-5 w-5" />
-              Create Medicine
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={handleRefresh}
+                variant="outline"
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <Button
+                onClick={() => setShowCreateForm(true)}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <Plus className="h-5 w-5" />
+                Create Medicine
+              </Button>
+            </div>
           </div>
         </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              <div className="flex-1">
+                <p className="text-red-700 font-medium">Error loading medicines</p>
+                <p className="text-red-600 text-sm">{error}</p>
+              </div>
+              <Button
+                onClick={clearError}
+                variant="outline"
+                size="sm"
+                className="text-red-600 border-red-300 hover:bg-red-50"
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="mb-6">
           <div className="relative max-w-md">
@@ -99,84 +158,86 @@ const MedicinesPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredMedicines.map((medicine) => {
-            const stockStatus = getStockStatus(medicine.stripCount);
+        {/* Loading State */}
+        {loading && medicines.length === 0 && (
+          <div className="text-center py-12">
+            <RefreshCw className="h-16 w-16 text-gray-300 mx-auto mb-4 animate-spin" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Loading medicines...
+            </h3>
+            <p className="text-gray-500">Please wait while we fetch your data</p>
+          </div>
+        )}
 
-            return (
-              <Card
-                key={medicine.id}
-                hover
-                onClick={() => handleMedicineClick(medicine.id)}
-                className="relative p-6"
-              >
-                <div className="absolute top-4 right-4">
-                  <button
-                    onClick={(e) => handleMenuClick(e, medicine.id)}
-                    className="p-1 rounded-full hover:bg-gray-100 transition-colors"
-                  >
-                    <MoreVertical className="h-5 w-5 text-gray-400" />
-                  </button>
+        {/* Medicines Grid */}
+        {!loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredMedicines.map((medicine) => {
 
-                  {selectedMedicine === medicine.id && (
-                    <div className="absolute right-0 top-8 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                      <button
-                        onClick={() => handleAddStrips(medicine.id)}
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 rounded-lg transition-colors"
-                      >
-                        Add New Strips
-                      </button>
+              return (
+                <Card
+                  key={medicine.id}
+                  hover
+                  onClick={() => handleMedicineClick(medicine.id)}
+                  className="relative p-6"
+                >
+                  <div className="absolute top-4 right-4">
+                    <button
+                      onClick={(e) => handleMenuClick(e, medicine.id)}
+                      className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                    >
+                      <MoreVertical className="h-5 w-5 text-gray-400" />
+                    </button>
+
+                    {selectedMedicine === medicine.id && (
+                      <div className="absolute right-0 top-8 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                        <button
+                          onClick={() => handleAddStrips(medicine.id)}
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          Add New Strips
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 pr-8">
+                      {medicine.name}
+                    </h3>
+                    {medicine.image && (
+                      <div className="mb-3">
+                        <img 
+                          src={`data:image/jpeg;base64,${medicine.image}`}
+                          alt={medicine.name}
+                          className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                        />
+                      </div>
+                    )}
+                    <p className="text-gray-600 text-sm">
+                      {medicine.formula}
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Building className="h-4 w-4 mr-2" />
+                      {medicine.company}
                     </div>
-                  )}
-                </div>
 
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 pr-8">
-                    {medicine.name}
-                  </h3>
-                  <p className="text-gray-600 text-sm">
-                    {medicine.description}
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Building className="h-4 w-4 mr-2" />
-                    {medicine.manufacturer}
-                  </div>
-
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Package className="h-4 w-4 mr-2" />
-                    {medicine.dosageForm} - {medicine.strength}
-                  </div>
-
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Added {formatDate(medicine.createdAt)}
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-sm text-gray-500">
-                        Strips Available
-                      </span>
-                      <p className="font-semibold text-gray-900">
-                        {medicine.stripCount}
-                      </p>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Added {formatDate(medicine.createdAt)}
                     </div>
-                    <Badge variant={stockStatus.variant}>
-                      {stockStatus.text}
-                    </Badge>
                   </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
 
-        {filteredMedicines.length === 0 && (
+        {/* Empty State */}
+        {!loading && filteredMedicines.length === 0 && (
           <div className="text-center py-12">
             <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
