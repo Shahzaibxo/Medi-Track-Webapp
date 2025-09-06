@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { UserDTO, TokenResponse } from "../types";
-import { ApiService, setAuthToken, removeAuthToken, isAuthenticated } from "../services/api";
+import { apiClient, authService } from "../services/ApiClient";
 
 interface AuthContextType {
   user: UserDTO | null;
@@ -30,24 +30,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response: TokenResponse = await ApiService.manufacturerSignin({ email, password });
+      const response = await authService.signin({ email, password });
       
-      setAuthToken(response.accessToken);
+      apiClient.setAuthToken(response.data.accessToken);
       
-        const userData: UserDTO = {
-          id: Date.now().toString(),
-          email: response.email,
-          companyName: response.companyName,
-          location: response.location
-        };
+      const userData: UserDTO = {
+        id: Date.now().toString(),
+        email: response.data.email,
+        companyName: response.data.companyName,
+        location: response.data.location
+      };
       
       setUser(userData);
-      
       localStorage.setItem("user", JSON.stringify(userData));
       
       return { 
         success: true, 
-        message: `Welcome back, ${response.companyName}!` 
+        message: `Welcome back, ${response.data.companyName}!` 
       };
     } catch (error: any) {
       console.error("Login error:", error);
@@ -65,7 +64,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     location: string
   ): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await ApiService.manufacturerSignup({ 
+      const response = await authService.signup({ 
         companyName, 
         email, 
         password, 
@@ -75,7 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Return success with message for toast notification
       return { 
         success: true, 
-        message: response.message || 'Account created successfully! Please sign in.' 
+        message: response.data.message || 'Account created successfully! Please sign in.' 
       };
     } catch (error: any) {
       console.error("Signup error:", error);
@@ -88,16 +87,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     setUser(null);
-    removeAuthToken();
+    apiClient.removeAuthToken();
     localStorage.removeItem("user");
   };
 
   const checkAuth = async () => {
     try {
-      if (isAuthenticated()) {
-        const userData = await ApiService.getCurrentUser();
-        setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
+      if (apiClient.isAuthenticated()) {
+        const response = await authService.getCurrentUser();
+        setUser(response.data);
+        localStorage.setItem("user", JSON.stringify(response.data));
       }
     } catch (error) {
       console.error("Auth check error:", error);
@@ -108,7 +107,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Check for existing user on mount
   React.useEffect(() => {
     const savedUser = localStorage.getItem("user");
-    if (savedUser && isAuthenticated()) {
+    if (savedUser && apiClient.isAuthenticated()) {
       try {
         setUser(JSON.parse(savedUser));
         // Verify token is still valid

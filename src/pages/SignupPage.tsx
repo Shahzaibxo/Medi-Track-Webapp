@@ -5,16 +5,19 @@ import { useToast } from "../components/ui/Toast";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Card } from "../components/ui/Card";
-import { Pill, Mail, Lock, ArrowLeft } from "lucide-react";
+import { Pill, Building, MapPin, Mail, Lock, ArrowLeft } from "lucide-react";
 
-export const LoginPage: React.FC = () => {
+export const SignupPage: React.FC = () => {
   const [formData, setFormData] = useState({
+    companyName: "",
     email: "",
     password: "",
+    confirmPassword: "",
+    location: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const { login, isAuthenticated } = useAuth();
+  const { signup, isAuthenticated } = useAuth();
   const { addToast, ToastContainer } = useToast();
 
   if (isAuthenticated) {
@@ -32,6 +35,18 @@ export const LoginPage: React.FC = () => {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
+    if (!formData.companyName.trim()) {
+      newErrors.companyName = "Company name is required";
+    } else if (formData.companyName.trim().length < 2) {
+      newErrors.companyName = "Company name must be at least 2 characters";
+    }
+
+    if (!formData.location.trim()) {
+      newErrors.location = "Location is required";
+    } else if (formData.location.trim().length < 2) {
+      newErrors.location = "Location must be at least 2 characters";
+    }
+
     if (!formData.email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -40,6 +55,16 @@ export const LoginPage: React.FC = () => {
 
     if (!formData.password) {
       newErrors.password = "Password is required";
+    } else if (formData.password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      newErrors.password = "Password must contain at least one uppercase letter, one lowercase letter, and one number";
+    }
+
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password";
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
     }
 
     setErrors(newErrors);
@@ -53,26 +78,37 @@ export const LoginPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const result = await login(formData.email, formData.password);
+      const result = await signup(
+        formData.companyName,
+        formData.email,
+        formData.password,
+        formData.location
+      );
       
       if (result.success) {
         addToast({
           type: 'success',
-          title: 'Login Successful!',
+          title: 'Account Created Successfully!',
           message: result.message
         });
         
-        // Clear form data on successful login
+        // Clear form data
         setFormData({
+          companyName: "",
           email: "",
           password: "",
+          confirmPassword: "",
+          location: "",
         });
         
-        // Redirect will happen automatically due to isAuthenticated change
+        // Redirect to login page after a short delay
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
       } else {
         addToast({
           type: 'error',
-          title: 'Login Failed',
+          title: 'Signup Failed',
           message: result.message
         });
       }
@@ -97,28 +133,58 @@ export const LoginPage: React.FC = () => {
           </div>
           <h1 className="text-3xl font-bold text-gray-900">MediTrack</h1>
           <p className="text-gray-600 mt-2">
-            Manufacturer Medicine Management System
+            Create your manufacturer account
           </p>
         </div>
 
         <Card className="p-6">
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold text-gray-900">Sign In</h2>
+              <h2 className="text-2xl font-semibold text-gray-900">Sign Up</h2>
               <Link
-                to="/"
+                to="/login"
                 className="flex items-center text-sm text-emerald-600 hover:text-emerald-500 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4 mr-1" />
-                Back to Home
+                Back to Login
               </Link>
             </div>
             <p className="text-gray-600 text-sm">
-              Welcome back! Please sign in to your account
+              Join MediTrack to manage your medicine manufacturing and distribution
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="relative">
+              <Building className="absolute left-3 top-8 h-5 w-5 text-gray-400" />
+              <Input
+                label="Company Name"
+                name="companyName"
+                type="text"
+                value={formData.companyName}
+                onChange={handleInputChange}
+                error={errors.companyName}
+                className="pl-10"
+                placeholder="Enter your company name"
+                required
+              />
+            </div>
+
+            <div className="relative">
+              <MapPin className="absolute left-3 top-8 h-5 w-5 text-gray-400" />
+              <Input
+                label="Location"
+                name="location"
+                type="text"
+                value={formData.location}
+                onChange={handleInputChange}
+                error={errors.location}
+                className="pl-10"
+                placeholder="Enter your company location"
+                required
+              />
+            </div>
+
             <div className="relative">
               <Mail className="absolute left-3 top-8 h-5 w-5 text-gray-400" />
               <Input
@@ -144,29 +210,24 @@ export const LoginPage: React.FC = () => {
                 onChange={handleInputChange}
                 error={errors.password}
                 className="pl-10"
-                placeholder="Enter your password"
+                placeholder="Create a strong password"
                 required
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                  Remember me
-                </label>
-              </div>
-
-              <div className="text-sm">
-                <a href="#" className="font-medium text-emerald-600 hover:text-emerald-500">
-                  Forgot your password?
-                </a>
-              </div>
+            <div className="relative">
+              <Lock className="absolute left-3 top-8 h-5 w-5 text-gray-400" />
+              <Input
+                label="Confirm Password"
+                name="confirmPassword"
+                type="password"
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                error={errors.confirmPassword}
+                className="pl-10"
+                placeholder="Confirm your password"
+                required
+              />
             </div>
 
             <Button
@@ -175,26 +236,25 @@ export const LoginPage: React.FC = () => {
               className="w-full cursor-pointer"
               size="lg"
             >
-              Sign In
+              Create Account
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm text-gray-600">
-            Don't have an account?{" "}
+            Already have an account?{" "}
             <Link
-              to="/signup"
+              to="/login"
               className="font-medium text-emerald-600 hover:text-emerald-500 transition-colors"
             >
-              Create one here
+              Sign in here
             </Link>
           </div>
         </Card>
 
         <div className="mt-8 text-center text-xs text-gray-500">
-          <p>Connect to your manufacturer account to manage medicines</p>
+          <p>By creating an account, you agree to our Terms of Service and Privacy Policy</p>
         </div>
       </div>
-
     </div>
   );
 };

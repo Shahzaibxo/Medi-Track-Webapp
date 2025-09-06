@@ -4,7 +4,6 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { useToast } from '../ui/Toast';
 import { CreateMedicineRequest } from '../../types';
-import { ApiService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Pill, X, Upload, Eye, EyeOff } from 'lucide-react';
 
@@ -96,8 +95,8 @@ export const CreateMedicineForm: React.FC<CreateMedicineFormProps> = ({ onClose,
 
     setLoading(true);
     try {
-      // Call the API to create medicine
-      const response = await ApiService.createMedicine(formData, imageFile!);
+      // Call the onSubmit callback which will handle the API call and refresh
+      await onSubmit(formData, imageFile!);
       
       // Show success toast
       addToast({
@@ -106,8 +105,6 @@ export const CreateMedicineForm: React.FC<CreateMedicineFormProps> = ({ onClose,
         message: 'Medicine has been successfully created and added to your inventory.'
       });
       
-      // Call the onSubmit callback with the created medicine data
-      onSubmit(formData, imageFile!);
       onClose();
     } catch (error: any) {
       // Show error toast

@@ -8,12 +8,13 @@ import Scan from "./pages/Scan";
 import Stakeholders from "./pages/Stakeholders";
 import Features from "./pages/Features";
 import { LoginPage } from "./pages/LoginPage";
+import { SignupPage } from "./pages/SignupPage";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import MedicinesPage from "./pages/MedicinesPage";
+import MedicineDetailPage from "./pages/MedicineDetailPage";
 import StripsPage from "./pages/StripsPage";
-import StripDetailPage from "./pages/StripDetailPage";
 
 const App = () => {
   return (
@@ -28,6 +29,7 @@ const App = () => {
             <Route path="/stakeholders" element={<Stakeholders />} />
             <Route path="/features" element={<Features />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
             <Route
               path="/medicines"
               element={
@@ -37,18 +39,18 @@ const App = () => {
               }
             />
             <Route
-              path="/medicines/:medicineId/strips"
+              path="/medicines/:medicineId"
               element={
                 <ProtectedRoute>
-                  <StripsPage />
+                  <MedicineDetailPage />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/strips/:stripId"
+              path="/medicines/:medicineId/strips"
               element={
                 <ProtectedRoute>
-                  <StripDetailPage />
+                  <StripsPage />
                 </ProtectedRoute>
               }
             />

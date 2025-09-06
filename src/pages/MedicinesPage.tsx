@@ -5,6 +5,7 @@ import { Input } from "../components/ui/Input";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { CreateMedicineForm } from "../components/forms/CreateMedicineForm";
+import { CreateStripForm } from "../components/forms/CreateStripForm";
 import { useMedicines } from "../hooks/useMedicines";
 import { useToast } from "../components/ui/Toast";
 import { CreateMedicineRequest } from "../types";
@@ -30,7 +31,9 @@ const MedicinesPage: React.FC = () => {
   } = useMedicines();
   const [searchTerm, setSearchTerm] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showCreateStripForm, setShowCreateStripForm] = useState(false);
   const [selectedMedicine, setSelectedMedicine] = useState<string | null>(null);
+  const [selectedMedicineForStrip, setSelectedMedicineForStrip] = useState<{id: string, name: string} | null>(null);
   const navigate = useNavigate();
   const { addToast, ToastContainer } = useToast();
 
@@ -54,6 +57,21 @@ const MedicinesPage: React.FC = () => {
     setSelectedMedicine(null);
   };
 
+  const handleCreateStrip = (medicineId: string, medicineName: string) => {
+    setSelectedMedicineForStrip({ id: medicineId, name: medicineName });
+    setShowCreateStripForm(true);
+  };
+
+
+  const handleStripCreated = () => {
+    // Refresh medicines list or show success message
+    addToast({
+      type: 'success',
+      title: 'Strip Created',
+      message: 'Strip has been created successfully!'
+    });
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -62,16 +80,21 @@ const MedicinesPage: React.FC = () => {
     });
   };
 
-  const handleCreateMedicine = (medicineData: CreateMedicineRequest, imageFile: File) => {
-    addMedicine(medicineData, imageFile);
-    setShowCreateForm(false);
-    
-    // Show success toast
-    addToast({
-      type: 'success',
-      title: 'Medicine Added',
-      message: `${medicineData.name} has been added to your inventory.`
-    });
+  const handleCreateMedicine = async (medicineData: CreateMedicineRequest, imageFile: File) => {
+    try {
+      await addMedicine(medicineData, imageFile);
+      setShowCreateForm(false);
+      
+      // Show success toast
+      addToast({
+        type: 'success',
+        title: 'Medicine Added',
+        message: `${medicineData.name} has been added to your inventory.`
+      });
+    } catch (error) {
+      // Error handling is done in the form component
+      console.error('Error creating medicine:', error);
+    }
   };
 
   const handleRefresh = async () => {
@@ -258,6 +281,20 @@ const MedicinesPage: React.FC = () => {
             onSubmit={handleCreateMedicine}
           />
         )}
+
+        {/* Create Strip Form */}
+        {showCreateStripForm && selectedMedicineForStrip && (
+          <CreateStripForm
+            medicineId={selectedMedicineForStrip.id}
+            medicineName={selectedMedicineForStrip.name}
+            onClose={() => {
+              setShowCreateStripForm(false);
+              setSelectedMedicineForStrip(null);
+            }}
+            onSuccess={handleStripCreated}
+          />
+        )}
+
       </main>
     </div>
   );

@@ -91,3 +91,51 @@ export interface ApiResponse<T> {
   message?: string;
   error?: string;
 }
+
+// API Client types
+export interface ApiConfig {
+  baseURL: string;
+  timeout?: number;
+  defaultHeaders?: Record<string, string>;
+}
+
+export interface RequestConfig {
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  endpoint: string;
+  params?: Record<string, any>;
+  query?: Record<string, any>;
+  body?: any;
+  headers?: Record<string, string>;
+  requiresAuth?: boolean;
+}
+
+export interface ApiError {
+  message: string;
+  status: number;
+  errors?: Record<string, string[]>;
+}
+
+// Strip Creation DTO - Updated to match API structure
+export interface BlockchainStripData {
+  power: number;
+  price: number;
+  batchNumber: string;
+  expiryDate: string;
+  manufacturingDate: string;
+  description?: string;
+  status: string;
+  stripCode: string;
+  medicineId: string;
+}
+
+export interface CreateStripRequest {
+  medicineId: string;
+  blockchainData: BlockchainStripData;
+}
+
+export interface CreateStripResponse {
+  id: string;
+  medicineId: string;
+  blockchainData: BlockchainStripData;
+  message?: string;
+}

@@ -51,12 +51,13 @@ export const useMedicines = () => {
     setLoading(true);
     setError(null);
     try {
-      await ApiService.createMedicine(medicineData, imageFile);
+      // Create the medicine
+      const response = await ApiService.createMedicine(medicineData, imageFile);
       
-      // Refresh the medicines list to get the updated data
+      // Refresh the medicines list to get the updated data with the new medicine
       await fetchMedicines();
       
-      return medicineData;
+      return response;
     } catch (err: any) {
       setError(err.message || 'Failed to add medicine');
       throw err;

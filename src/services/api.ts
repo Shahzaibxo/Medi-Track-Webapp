@@ -6,8 +6,11 @@ import {
   SigninRequest,
   TokenResponse,
   MessageResponse,
-  ApiResponse
+  ApiResponse,
+  CreateStripRequest,
+  CreateStripResponse
 } from '../types';
+import { apiClient, authService, medicineService, stripService } from './ApiClient';
 
 const API_BASE_URL = 'http://localhost:8081/api';
 
@@ -25,140 +28,81 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
   return response.json();
 };
 
-// API service class
+// Legacy API service class - now using the new ApiClient
 export class ApiService {
-  // Manufacturer Authentication
+  // Manufacturer Authentication - now using new ApiClient
   static async manufacturerSignup(signupData: SignupRequest): Promise<MessageResponse> {
-    const response = await fetch(`${API_BASE_URL}/manufacturer/signup`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(signupData),
-    });
-    return handleResponse<MessageResponse>(response);
+    const response = await authService.signup(signupData);
+    return response.data;
   }
 
   static async manufacturerSignin(signinData: SigninRequest): Promise<TokenResponse> {
-    const response = await fetch(`${API_BASE_URL}/manufacturer/signin`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(signinData),
-    });
-    return handleResponse<TokenResponse>(response);
+    const response = await authService.signin(signinData);
+    return response.data;
   }
 
   static async getCurrentUser(): Promise<any> {
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const response = await fetch(`${API_BASE_URL}/manufacturer/me`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    return handleResponse(response);
+    const response = await authService.getCurrentUser();
+    return response.data;
   }
 
-  // Medicine Management
+  // Medicine Management - now using new ApiClient
   static async createMedicine(medicineData: CreateMedicineRequest, imageFile: File): Promise<any> {
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const formData = new FormData();
-    formData.append('name', medicineData.name);
-    formData.append('formula', medicineData.formula);
-    formData.append('company', medicineData.company);
-    formData.append('image', imageFile);
-
-    const response = await fetch(`${API_BASE_URL}/medicines`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
-    return handleResponse(response);
+    const response = await medicineService.createMedicine(medicineData, imageFile);
+    return response.data;
   }
 
   static async updateMedicine(medicineId: string, medicineData: UpdateMedicineRequest): Promise<any> {
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const response = await fetch(`${API_BASE_URL}/medicines/${medicineId}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(medicineData),
-    });
-    return handleResponse(response);
+    const response = await medicineService.updateMedicine(medicineId, medicineData);
+    return response.data;
   }
 
   static async deleteMedicine(medicineId: string): Promise<any> {
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const response = await fetch(`${API_BASE_URL}/medicines/${medicineId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    return handleResponse(response);
+    const response = await medicineService.deleteMedicine(medicineId);
+    return response.data;
   }
 
   static async getMedicines(filters: MedicineListingRequest = {}): Promise<any> {
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const queryParams = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        queryParams.append(key, value.toString());
-      }
-    });
-
-    const url = `${API_BASE_URL}/medicines${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    return handleResponse(response);
+    const response = await medicineService.getMedicines(filters);
+    return response.data;
   }
 
+  // Strip Management - now using new ApiClient
+  static async createStrip(stripData: CreateStripRequest): Promise<CreateStripResponse> {
+    const response = await stripService.createStrip(stripData);
+    return response.data;
+  }
 
+  static async getStripsByMedicine(medicineId: string): Promise<any> {
+    const response = await stripService.getStripsByMedicine(medicineId);
+    return response.data;
+  }
+
+  static async getStripById(stripId: string): Promise<any> {
+    const response = await stripService.getStripById(stripId);
+    return response.data;
+  }
+
+  static async updateStrip(stripId: string, stripData: Partial<CreateStripRequest>): Promise<any> {
+    const response = await stripService.updateStrip(stripId, stripData);
+    return response.data;
+  }
+
+  static async deleteStrip(stripId: string): Promise<any> {
+    const response = await stripService.deleteStrip(stripId);
+    return response.data;
+  }
 }
 
-// Utility functions
+// Utility functions - now using new ApiClient
 export const setAuthToken = (token: string): void => {
-  localStorage.setItem('authToken', token);
+  apiClient.setAuthToken(token);
 };
 
 export const removeAuthToken = (): void => {
-  localStorage.removeItem('authToken');
+  apiClient.removeAuthToken();
 };
 
 export const isAuthenticated = (): boolean => {
-  return !!getAuthToken();
+  return apiClient.isAuthenticated();
 };
